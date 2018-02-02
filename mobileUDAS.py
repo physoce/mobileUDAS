@@ -26,7 +26,7 @@ def parseSCUFA(raw):
         
         return (rawFL,correctedFL,turb,temp)
     except:
-        print 'ERROR: Invalid SCUFA Data: ',raw
+        print('ERROR: Invalid SCUFA Data: ',raw)
         return ('NaN','NaN','NaN','NaN')
         
 def parseTSG(raw):
@@ -39,7 +39,7 @@ def parseTSG(raw):
         return (temp,cond,sal)
         
     except:
-        print 'ERROR: Invalid TSG data: ',raw
+        print('ERROR: Invalid TSG data: ',raw)
         return ('NaN','NaN','NaN')
     
 def parseTrans(raw):
@@ -51,7 +51,7 @@ def parseTrans(raw):
         return ba
         
     except:
-        print 'ERROR: Invalid Trans data: ',raw
+        print('ERROR: Invalid Trans data: ',raw)
         return 'NaN'
 
 
@@ -65,7 +65,7 @@ trans = serial.Serial('COM8',19200,timeout=10)
 t = getTime()[1]
 dateString = t.strftime('%Y%m%d')
 filename = 'C:\\Users\\Stephanie\\Desktop\\'+dateString+'_UDAS.csv'
-print filename
+print(filename)
 f= open(filename,'wb')
 writer = csv.writer(f,delimiter = ',')
 writer.writerow(['unix_time: seconds from 1970-01-01 GMT'])
@@ -92,19 +92,19 @@ while True:
         trans_data_raw = trans.readline()
        
        
-        print 'Time: ',t
-        print 'SCUFA_raw: ',scufa_data_raw
-        print 'TSG_raw: ',tsg_data_raw
-        print 'Trans_raw: ',trans_data_raw
+        print('Time: ',t)
+        print('SCUFA_raw: ',scufa_data_raw)
+        print('TSG_raw: ',tsg_data_raw)
+        print('Trans_raw: ',trans_data_raw)
         
         scufa_data_parsed = parseSCUFA(scufa_data_raw)
         tsg_data_parsed = parseTSG(tsg_data_raw)
         trans_data_parsed = parseTrans(trans_data_raw)
         
-        print 'Time: ',t
-        print 'SCUFA_parsed: ',scufa_data_parsed
-        print 'TSG_parsed: ',tsg_data_parsed
-        print 'Trans_parsed: ',trans_data_parsed
+        print('Time: ',t)
+        print('SCUFA_parsed: ',scufa_data_parsed)
+        print('TSG_parsed: ',tsg_data_parsed)
+        print('Trans_parsed: ',trans_data_parsed)
         writer.writerow([t[0],t[1],t[2],
                     tsg_data_parsed[0],tsg_data_parsed[1],tsg_data_parsed[2],
                     scufa_data_parsed[0],scufa_data_parsed[1],scufa_data_parsed[2],scufa_data_parsed[3],trans_data_parsed])
