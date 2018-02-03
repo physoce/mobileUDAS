@@ -58,15 +58,19 @@ def parseTrans(raw):
 #Connect to each sensor via the com port its connected to..
 #If you switch around the plugs, you're going to have to..
 #.. update the 'COMX' value accordingly
-scufa = serial.Serial('COM7',9600,timeout=10)
-tsg   = serial.Serial('COM9',38400,timeout=10)
-trans = serial.Serial('COM8',19200,timeout=10)
+
+#scufa = serial.Serial('COM7',9600,timeout=10)
+#tsg   = serial.Serial('COM9',38400,timeout=10)
+#trans = serial.Serial('COM8',19200,timeout=10)
+
+tsg   = serial.Serial('/dev/ttyUSB0',38400,timeout=10)
+trans = serial.Serial('/dev/ttyUSB1',19200,timeout=10)
 
 t = getTime()[1]
-dateString = t.strftime('%Y%m%d')
-filename = 'C:\\Users\\Stephanie\\Desktop\\'+dateString+'_UDAS.csv'
+dateString = t.strftime('%Y%m%d-%H%M')
+filename = '/home/pi/Desktop/mobileUDAS_data/'+dateString+'_UDAS.csv'
 print(filename)
-f= open(filename,'wb')
+f= open(filename,'wt')
 writer = csv.writer(f,delimiter = ',')
 writer.writerow(['unix_time: seconds from 1970-01-01 GMT'])
 writer.writerow(['local_time: our local time in PDT'])
