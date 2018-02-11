@@ -30,10 +30,10 @@ def parseSCUFA(raw):
         correctedFL = float(parsed[3])
         turb = float(parsed[4])
         temp = float(parsed[5][:-3])
-        return (rawFL,correctedFL,turb,temp)
+        return [rawFL,correctedFL,turb,temp]
     except:
         print('ERROR: Invalid SCUFA Data: ',raw)
-        return ('NaN','NaN','NaN','NaN')
+        return ['NaN','NaN','NaN','NaN']
         
 def parseTSG(raw):
     try:     
@@ -41,19 +41,19 @@ def parseTSG(raw):
         temp = float(parsed[0])
         cond = float(parsed[1])
         sal = float(parsed[2])
-        return (temp,cond,sal)
+        return [temp,cond,sal]
     except:
         print('ERROR: Invalid TSG data: ',raw)
-        return ('NaN','NaN','NaN')
+        return ['NaN','NaN','NaN']
     
 def parseTrans(raw):
     try:
         parsed = raw.split('\t')
         ba = float(parsed[4])
-        return ba
+        return [ba]
     except:
         print('ERROR: Invalid Trans data: ',raw)
-        return 'NaN'
+        return ['NaN']
 
 parse_scufa = False
 parse_tsg = True
@@ -72,87 +72,79 @@ scufa_baud = 9600
 tsg_baud = 38400
 trans_baud = 19200
 
-if parse_scufa:
-    scufa = serial.Serial(scufa_port,scufa_baud,timeout=2)
-else:
-    scufa = []
-if parse_tsg:
-    tsg   = serial.Serial(tsg_port,tsg_baud,timeout=2)
-else:
-    tsg = []
-    
-if parse_trans:
-    trans = serial.Serial(trans_port,trans_baud,timeout=2)
-else:
-    trans = []
-
 t = getTime()[1]
 dateString = t.strftime('%Y%m%d-%H%M')
 filename = '/home/pi/Desktop/mobileUDAS_data/'+dateString+'_UDAS.csv'
 print(filename)
-f= open(filename,'wt')
-writer = csv.writer(f,delimiter = ',')
-writer.writerow(['unix_time: seconds from 1970-01-01 GMT'])
-writer.writerow(['local_time: our local time in PDT'])
-writer.writerow(['utc_time: time in GMT/UTC'])
-writer.writerow(['Temperatures in degrees Celcius'])
-writer.writerow(['Conductivity in Siemems per meter (S/m)'])
-writer.writerow(['Salinity in Practical Salinity Units (PSU)'])
-writer.writerow(['RF: raw fluorescence in micrograms per Liter'])
-writer.writerow(['CF: temperature corrected in micrograms per Liter'])
-writer.writerow(['turb: turbidity in NTU'])
-writer.writerow(['ba: beam attenuation in 1/m'])
-
-header = ['unix_time','local_time','utc_time','sbe_temp','sbe_cond',
-          'sbe_sal','scufa_RF','scufa_CF','scufa_turb','scufa_temp','ba']
-writer.writerow(header)
+with open(filename,'wt') as f:
+    writer = csv.writer(f,delimiter = ',')
+    
+    writer.writerow(['unix_time: seconds from 1970-01-01 GMT'])
+    writer.writerow(['local_time: our local time in PDT'])
+    writer.writerow(['utc_time: time in GMT/UTC'])
+    header = ['unix_time','local_time','utc_time']
+    
+    if parse_tsg:
+        writer.writerow(['Temperatures in degrees Celcius'])
+        writer.writerow(['Conductivity in Siemems per meter (S/m)'])
+        writer.writerow(['Salinity in Practical Salinity Units (PSU)'])
+        header = header+['sbe_temp','sbe_cond','sbe_sal']
+    if parse_scufa:
+        writer.writerow(['RF: raw fluorescence in micrograms per Liter'])
+        writer.writerow(['CF: temperature corrected in micrograms per Liter'])
+        writer.writerow(['turb: turbidity in NTU'])
+        header = header+['scufa_RF','scufa_CF','scufa_turb','scufa_temp']
+    if parse_trans:
+        writer.writerow(['ba: beam attenuation in 1/m'])
+        header = header+['ba']
+        
+    writer.writerow(header)
 
 #Loop runs until user stops it
-while True:
+readloop = True
+while readloop is True:
     try:
-        t = getTime()
+        with open(filename,'at') as f:
+            writer = csv.writer(f,delimiter = ',')
+            
+            t = getTime()
+            print('Time: ',t)
+            rowdata = [t[0],t[1],t[2]]
 
-        scufa_data_raw = getRaw(scufa)
-        tsg_data_raw = getRaw(tsg)
-        trans_data_raw = getRaw(trans)
-        
-        print('Time: ',t)
-        print('SCUFA_raw: ',scufa_data_raw)
-        print('TSG_raw: ',tsg_data_raw)
-        print('Trans_raw: ',trans_data_raw)
-        
-        scufa_data_parsed = parseSCUFA(scufa_data_raw)
-        tsg_data_parsed = parseTSG(tsg_data_raw)
-        trans_data_parsed = parseTrans(trans_data_raw)
-        
-        print('Time: ',t)
-        print('SCUFA_parsed: ',scufa_data_parsed)
-        print('TSG_parsed: ',tsg_data_parsed)
-        print('Trans_parsed: ',trans_data_parsed)
-        writer.writerow([t[0],t[1],t[2],
-                    tsg_data_parsed[0],tsg_data_parsed[1],tsg_data_parsed[2],
-                    scufa_data_parsed[0],scufa_data_parsed[1],scufa_data_parsed[2],scufa_data_parsed[3],
-                         trans_data_parsed])
-       
-       
+            if parse_tsg:
+                try:
+                    with serial.Serial(tsg_port,tsg_baud,timeout=5) as tsg:
+                        tsg_data_raw = getRaw(tsg)
+                        tsg_data_parsed = parseTSG(tsg_data_raw)
+                        print('TSG_raw: ',tsg_data_raw)
+                        print('TSG_parsed: ',tsg_data_parsed)
+                except:
+                    tsg_data_parsed = ['NaN','NaN','NaN','NaN']
+                rowdata = rowdata+tsg_data_parsed
+            
+            if parse_scufa:
+                try:
+                    with serial.Serial(scufa_port,scufa_baud,timeout=5) as scufa:
+                        scufa_data_raw = getRaw(scufa)
+                        scufa_data_parsed = parseSCUFA(scufa_data_raw)
+                        print('SCUFA_raw: ',scufa_data_raw)
+                        print('SCUFA_parsed: ',scufa_data_parsed)
+                except:
+                    scufa_data_parsed = ['NaN','NaN','NaN','NaN']
+                rowdata = rowdata+scufa_data_parsed
+                
+            if parse_trans:
+                try:
+                    with serial.Serial(trans_port,trans_baud,timeout=5) as trans:
+                        trans_data_raw = getRaw(trans)
+                        trans_data_parsed = parseTrans(trans_data_raw)
+                        print('Trans_raw: ',trans_data_raw)
+                        print('Trans_parsed: ',trans_data_parsed)
+                except:
+                    trans_data_parsed = ['NaN']
+                rowdata = rowdata+trans_data_parsed
+            
+            writer.writerow(rowdata)
+                  
     except KeyboardInterrupt:
-
-        try:
-            scufa.close()
-        except:
-            pass
-        try:
-            tsg.close()
-        except:
-            pass
-        try:
-            trans.close()
-        except:
-            pass
-        
-        f.close()
-        
-        
-    
-    
-    
+        readloop = False
