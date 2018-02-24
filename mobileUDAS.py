@@ -2,6 +2,7 @@ import serial, time, csv
 from DateTime import DateTime
 from datetime import datetime as dt
 import signal
+import pynmea2
 
 #Helper Functions
 def getTime():
@@ -64,24 +65,31 @@ def readData(parsefun,baud,current_port=None):
 
     try:
         with serial.Serial(current_port,baud,timeout=5) as sensor:
-            #data_raw = getRaw(sensor)
             data_raw = timeout(getRaw,sensor,timeout_duration=5)
             data_parsed = parsefun(data_raw)
         port = current_port
 
+# Ideally the code would automatically scan for ports, but timeouts are not yet working             
+# If the port is wrong, serial.readline() runs forever
+
+##        if 'NaN' in data_parsed:
+##            raise Exception('invalid data')
+##
+##    except Exception:
+##        print('scanning ports')
+##        for port_num in range(4):
+##            print('port',port_num)
+##            port = port_prefix+str(port_num)
+##            try:
+##                with serial.Serial(port,baud,timeout=5) as sensor:
+##                    data_raw = timeout(getRaw,sensor,timeout_duration=5)
+##                data_parsed = parsefun(data_raw)
+##                break
+##            except Exception:
+##                pass
     except Exception:
-        print('scanning ports')
-        for port_num in range(4):
-            print('port',port_num)
-            port = port_prefix+str(port_num)
-            try:
-                with serial.Serial(port,baud,timeout=5) as sensor:
-                    data_raw = getRaw(sensor)
-                data_parsed = parsefun(data_raw)
-                break
-            except Exception:
-                pass
-            
+        pass
+
     return data_raw,data_parsed,port
         
 def parseSCUFA(raw):
@@ -117,6 +125,39 @@ def parseTrans(raw):
         print('ERROR: Invalid Trans data: ',raw)
         return ['NaN']
 
+def readGPS(gps_port,gps_baud):
+    gps_parsed = ['NaN','NaN','NaN','NaN','NaN']
+    with serial.Serial(gps_port, gps_baud, timeout=1) as ser:
+        for i in range(7):
+            try:
+                nmea_raw = ser.readline().decode() # python 3
+            except:
+                nmea_raw = ser.readline() # python 2
+            if nmea_raw[3:6] == 'GGA':
+                print(nmea_raw)
+                #nmea_raw = '$GPGGA,194530.000,3051.8007,N,10035.9989,W,1,4,2.18,746.4,M,-22.2,M,,*6B'
+                timestr = nmea_raw[7:13]
+                gps_hour = timestr[0:2]
+                gps_min = timestr[2:4]
+                gps_sec = timestr[4:]
+                gps_time = str(gps_hour)+':'+str(gps_min)+':'+str(gps_sec)
+                gps_parsed[0] = gps_time
+                try:
+                    nmea_parsed = pynmea2.parse(nmea_raw)
+                    latdeg = int((float(nmea_parsed.lat)-float(nmea_parsed.lat)%100)/100)
+                    latmin = float(nmea_parsed.lat)%100
+                    londeg = int((float(nmea_parsed.lon)-float(nmea_parsed.lon)%100)/100)
+                    lonmin = float(nmea_parsed.lon)%100
+                    gps_parsed = [gps_time,
+                                  str(latdeg),
+                                  str(latmin)[0:10],
+                                  str(londeg),
+                                  str(lonmin)[0:10]]
+                except:
+                    pass
+
+    return gps_parsed
+
 collect_data = True
 
 parse_scufa = False
@@ -130,10 +171,12 @@ parse_trans = True
 # need to figure out how to make these consistent
 
 
+gps_port = '/dev/ttyUSB1'
 scufa_port = ''
 tsg_port = '/dev/ttyUSB0'
 trans_port = '/dev/ttyUSB2'
 
+gps_baud = 4800
 scufa_baud = 9600
 tsg_baud = 38400
 trans_baud = 19200
@@ -150,7 +193,13 @@ if collect_data is True:
         writer.writerow(['unix_time: seconds from 1970-01-01 GMT'])
         writer.writerow(['local_time: our local time in PDT'])
         writer.writerow(['utc_time: time in GMT/UTC'])
-        header = ['unix_time','local_time','utc_time']
+        writer.writerow(['gps_time: GPS time in GMT/UTC'])
+        writer.writerow(['lat_deg: GPS latitude degrees'])
+        writer.writerow(['lat_min: GPS latitude minutes'])
+        writer.writerow(['lon_deg: GPS longitude degrees'])
+        writer.writerow(['lon_min: GPS longitude minutes'])
+        header = ['unix_time','local_time','utc_time',
+                  'gps_time','lat_deg','lat_min','lon_deg','lon_min']
         
         if parse_tsg:
             writer.writerow(['Temperatures in degrees Celcius'])
@@ -178,6 +227,10 @@ if collect_data is True:
                 t = getTime()
                 print('Time: ',t)
                 rowdata = [t[0],t[1],t[2]]
+
+                gps_parsed = readGPS(gps_port,gps_baud)
+                print('GPS_parsed: ',gps_parsed)
+                rowdata = rowdata+gps_parsed
 
                 if parse_tsg:
                     try:
