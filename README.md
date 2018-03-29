@@ -23,3 +23,10 @@ Add the following line (editing the path to the mobileUDAS directory if necessar
 ```
 
 This runs the script and also creates a log file of the output. The `python -u` command runs in unbuffered mode so that the log file is written continuously.
+
+To send the log file output to a terminal (such as one on an external display), add an additional line:
+
+```
+@reboot /bin/sleep 20; tail -f  /home/pi/mobileUDAS/log.txt > /dev/tty1
+```
+This sends the output to the terminal represented by `/dev/tty1`. This terminal is the default for the PiTFT 2.2" display. 
