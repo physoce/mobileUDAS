@@ -39,3 +39,5 @@ connection, the date and time will be off. The date can be set manually on the c
 ```
 sudo date -s "Mar 30 13:42:40 PDT 2018"
 ```
+
+This will take effect immediately and new data collected by the UDAS will have the correct date. Note, however, that the file name associated with the output may have the incorrect time.
