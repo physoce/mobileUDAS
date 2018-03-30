@@ -30,3 +30,12 @@ To send the log file output to a terminal (such as one on an external display), 
 @reboot /bin/sleep 20; tail -f  /home/pi/mobileUDAS/log.txt > /dev/tty1
 ```
 This sends the output to the terminal represented by `/dev/tty1`. This terminal is the default for the PiTFT 2.2" display. 
+
+### Setting the correct date (Raspberry Pi)
+
+The Raspberry Pi does not have an internal clock that is run continuously, so if there is no network 
+connection, the date and time will be off. The date can be set manually on the command line with a command in this format:
+
+```
+sudo date -s "Mar 30 13:42:40 PDT 2018"
+```
