@@ -3,6 +3,8 @@ from DateTime import DateTime
 from datetime import datetime as dt
 import signal
 import pynmea2
+import os.path
+from retrieve_SUNA import getSUNA
 
 #Helper Functions
 def getTime():
@@ -135,7 +137,6 @@ def readGPS(gps_port,gps_baud):
                 nmea_raw = ser.readline() # python 2
             if nmea_raw[3:6] == 'GGA':
                 print(nmea_raw)
-                #nmea_raw = '$GPGGA,194530.000,3051.8007,N,10035.9989,W,1,4,2.18,746.4,M,-22.2,M,,*6B'
                 timestr = nmea_raw[7:13]
                 gps_hour = timestr[0:2]
                 gps_min = timestr[2:4]
@@ -163,6 +164,7 @@ collect_data = True
 parse_scufa = False
 parse_tsg = True
 parse_trans = True
+parse_suna = True
 
 #Connect to each sensor via the com port its connected to..
 #If you switch around the plugs, you're going to have to..
@@ -171,21 +173,30 @@ parse_trans = True
 # need to figure out how to make these consistent
 
 
-gps_port = '/dev/ttyUSB1'
+gps_port = '/dev/ttyUSB2'
 scufa_port = ''
-tsg_port = '/dev/ttyUSB0'
-trans_port = '/dev/ttyUSB2'
+tsg_port = '/dev/ttyUSB3'
+trans_port = '/dev/ttyUSB0'
+suna_port = '/dev/ttyUSB1'
 
 gps_baud = 4800
 scufa_baud = 9600
 tsg_baud = 38400
 trans_baud = 19200
+suna_baud = 57600
+
 
 if collect_data is True:
     # open new output file and write header
     t = getTime()[1]
     dateString = t.strftime('%Y%m%d-%H%M')
     filename = '/home/pi/Desktop/mobileUDAS_data/'+dateString+'_UDAS.csv'
+    # avoid overwriting file of same name
+    for i in range(100):
+        if os.path.isfile(filename):
+            filename = '/home/pi/Desktop/mobileUDAS_data/'+dateString+'_UDAS-'+str(i)+'.csv'
+        else:
+            break
     print(filename)
     with open(filename,'wt') as f:
         writer = csv.writer(f,delimiter = ',')
@@ -214,6 +225,10 @@ if collect_data is True:
         if parse_trans:
             writer.writerow(['ba: beam attenuation in 1/m'])
             header = header+['ba']
+        if parse_suna:
+            writer.writerow(['no3: nitrate in uM'])
+            header = header+['no3']
+            
             
         writer.writerow(header)
 
@@ -261,6 +276,18 @@ if collect_data is True:
                     except:
                         trans_data_parsed = ['NaN']
                     rowdata = rowdata+trans_data_parsed
+                    
+                if parse_suna:
+#                    try:
+                    sensor = serial.Serial(suna_port,suna_baud,timeout=10)
+                    nsample = 5
+                    nitrate_uM,nitrogen = getSUNA(sensor,nsample)
+                    suna_parsed = [nitrate_uM]
+                    sensor.close()
+                    print('SUNA_parsed: ',suna_parsed)
+##                    except:
+##                        suna_parsed = ['NaN']
+                    rowdata = rowdata+suna_parsed
                 
                 writer.writerow(rowdata)
                       
